@@ -1,0 +1,7 @@
+items:
+  - item1:
+      material: DIAMOND_SWORD
+      price: 21
+  - item2:
+      material: DIAMOND_ORE
+      price: 200

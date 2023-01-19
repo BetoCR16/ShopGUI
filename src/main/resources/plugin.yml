@@ -1,0 +1,17 @@
+name: CustomHUD
+author: Kerneltech
+version: 1.0.0
+main: com.edadimperial.CustomHUD
+api-version: 1.19
+softdepend:
+  - ItemsAdder
+depend:
+  - Vault
+
+commands:
+  testgui:
+    description: "Test gui command"
+    usage: "/testgui"
+  testgui2:
+    description: "Test gui command"
+    usage: "/testgui2"
