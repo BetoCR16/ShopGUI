@@ -2,16 +2,17 @@ package com.edadimperial.commands;
 
 import com.edadimperial.CustomHUD;
 import com.edadimperial.utils.Shop;
+import net.md_5.bungee.api.chat.hover.content.Item;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,9 +25,11 @@ import org.bukkit.plugin.Plugin;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.bukkit.Bukkit.getServer;
+
 
 public class CustomGUI2 implements CommandExecutor, Listener {
-    private static String invName = "";
+    private static String invName = ChatColor.WHITE + "\uF002\uC18B\uF003";
     private static Plugin plugin = null;
     private static Economy money = null;
     private static String[] tradesAllowSymbols = {"\uC18D", "\uC18F", "\uC191", "\uC193", "\uC195", "\uC197"};
@@ -34,10 +37,24 @@ public class CustomGUI2 implements CommandExecutor, Listener {
 
     private static ArrayList<Shop> shopItems = new ArrayList<>(){};
     private static Player currentPlayer = null;
+    static FileConfiguration config = null;
+    static ConfigurationSection section = null;
 
     public CustomGUI2(Plugin instance, Economy economy) {
         plugin = instance;
         money = economy;
+        config = plugin.getConfig();
+        section = config.getConfigurationSection("items");
+
+        int i = 0;
+        for (String key : section.getKeys(false)) {
+            Material material = Material.getMaterial(config.getString("items." + key + ".material"));
+            double price = config.getDouble("items." + key + ".price");
+
+            Shop itemShop = new Shop(i,material,price);
+            shopItems.add(itemShop);
+        }
+        getServer().getPluginManager().registerEvents(this,plugin);
     }
 
 
@@ -49,24 +66,13 @@ public class CustomGUI2 implements CommandExecutor, Listener {
 
         Player player = (Player) sender;
         currentPlayer = player;
+
         double playerBalance = money.getBalance(player);
 
-        FileConfiguration config = plugin.getConfig();
-        ConfigurationSection section = config.getConfigurationSection("items");
-
-        invName = ChatColor.WHITE + "\uF002\uC18B\uF003";
-
         int tradeIndex = 0;
-        int i = 0;
-
-        List<Shop> shopItems = new ArrayList<>();
         for (String key : section.getKeys(false)) {
 
-            Material material = Material.getMaterial(config.getString("items." + key + ".material"));
             double price = config.getDouble("items." + key + ".price");
-
-            Shop itemShop = new Shop(i,material,price);
-            shopItems.add(itemShop);
 
             if (playerBalance >= price) {
                 invName += "\uF004" + tradesAllowSymbols[tradeIndex];
@@ -74,26 +80,27 @@ public class CustomGUI2 implements CommandExecutor, Listener {
                 invName += "\uF004" + tradesDenySymbols[tradeIndex];
             }
 
-            System.out.println(shopItems);
             tradeIndex++;
-            i++;
-
         }
 
         Inventory inventory = Bukkit.createInventory(player, 54, invName);
-
 
         int itemIndex = 1;
         for (int j = 0; j < shopItems.size(); j++) {
             ItemStack item = new ItemStack(shopItems.get(j).getItem());
             ItemMeta itemMeta = item.getItemMeta();
-            List<String> lore;
+            List<String> lore = new ArrayList<String>();
             if (playerBalance >= shopItems.get(j).getPrice()) {
-                lore = config.getStringList("messages.lore-allow");
+                List<String> loreList = config.getStringList("messages.lore-allow");
+                for (String l : loreList) {
+                    lore.add(ChatColor.translateAlternateColorCodes('&',l));
+                }
             }
             else {
-                lore = config.getStringList("messages.lore-deny");
-
+                List<String> loreList = config.getStringList("messages.lore-deny");
+                for (String l : loreList) {
+                    lore.add(ChatColor.translateAlternateColorCodes('&',l));
+                }
             }
             lore.add("Precio: " + shopItems.get(j).getPrice());
             itemMeta.setLore(lore);
@@ -109,16 +116,24 @@ public class CustomGUI2 implements CommandExecutor, Listener {
     @EventHandler
     void onInventoryClick(InventoryClickEvent event) {
         if (event.getView().getTitle().equals(invName)) {
-            Material clickedItem = event.getCurrentItem().getType();
+            ItemStack clickedItem = event.getCurrentItem();
+            double playerBalance = money.getBalance(currentPlayer);
 
-            for (Shop item : shopItems) {
-                System.out.println(clickedItem.equals(item.getItem()));
-                if (clickedItem.equals(item.getItem())) {
-                    money.withdrawPlayer(currentPlayer, item.getPrice());
-                    currentPlayer.sendMessage("Te quite dinero: " + item.getPrice());
+            if (clickedItem != null) {
+                for (Shop item : shopItems) {
+                    if (clickedItem.getType() == item.getItem()) {
+                        if (playerBalance >= item.getPrice()) {
+                            currentPlayer.getInventory().addItem(clickedItem);
+                            money.withdrawPlayer(currentPlayer, item.getPrice());
+                            currentPlayer.playSound(currentPlayer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP,100,1);
+                        }
+                        else {
+                            currentPlayer.sendMessage("No tienes: " + item.getPrice() + ".Tienes: " + playerBalance);
+                        }
+                    }
                 }
             }
-            //event.setCancelled(true);
+            event.setCancelled(true);
         }
 
     }

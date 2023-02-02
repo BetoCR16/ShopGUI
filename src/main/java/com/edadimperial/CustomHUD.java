@@ -22,7 +22,7 @@ public class CustomHUD extends JavaPlugin {
         saveDefaultConfig();
         //getCommand("testgui").setExecutor(new TestGUI());
         getCommand("testgui").setExecutor(new CustomGUI2(this, econ));
-        getServer().getPluginManager().registerEvents(new CustomGUI2(this,econ),this);
+
 
     }
 
